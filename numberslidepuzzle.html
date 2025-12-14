@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slide Puzzle - Mobile Edition</title>
+    <style>
+        /* --- 1. CSS: Variables & Thèmes --- */
+        :root {
+            /* Couleurs SOMBRE (Par défaut) */
+            --bg-color: #1a1a2e;
+            --panel-color: #16213e;
+            --accent-color: #e94560;
+            --text-color: #ffffff;
+            --tile-color: #0f3460;
+            --tile-text: #fff;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .theme-light {
+            /* Couleurs CLAIR */
+            --bg-color: #f0f0f5;
+            --panel-color: #ffffff;
+            --accent-color: #3385ff;
+            --text-color: #333333;
+            --tile-color: #e0f2ff;
+            --tile-text: #333333;
+            --shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        /* --- 2. CSS: Généralités & Conteneur Principal --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 { margin-bottom: 20px; font-weight: 300; letter-spacing: 3px; font-size: 2.5rem; }
+
+        #main-app {
+            width: 100%;
+            max-width: 600px; /* Limite la taille sur grand écran */
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .screen {
+            background: var(--panel-color);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 450px;
+            box-sizing: border-box;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .screen.active { display: flex; }
+
+        /* --- 3. CSS: Boutons & Contrôles --- */
+        button, select {
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 8px 0;
+            transition: all 0.2s;
+            width: 100%;
+            max-width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .main-menu button {
+            background: var(--accent-color);
+            color: white;
+        }
+        button:hover { transform: scale(1.02); filter: brightness(1.1); }
+
+        .settings-control, .game-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 10px 0;
+        }
+        .settings-control label { font-weight: bold; }
+        .settings-control select { width: 40%; max-width: none; }
+        
+        /* --- 4. CSS: Le Jeu & Les Tuiles --- */
+        .scoreboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .score-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.3s, border 0.3s;
+        }
+        .theme-light .score-box { background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); }
+
+
+        .score-label { font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 3px; }
+        .score-value { font-size: 1.1rem; font-weight: bold; color: var(--accent-color); font-family: monospace; }
+
+        #game-container {
+            position: relative;
+            background: var(--panel-color);
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            padding: 5px;
+            margin-top: 15px;
+            touch-action: none; /* Améliore la réponse tactile */
+            box-sizing: content-box;
+        }
+
+        .tile {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--tile-color);
+            color: var(--tile-text);
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.1s ease-out;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        /* Tuile correcte (verte/bleue) */
+        .tile.correct {
+            border: 2px solid #4cd137;
+            color: #4cd137;
+        }
+        .theme-light .tile.correct {
+            border: 2px solid #00aaff;
+            color: #00aaff;
+        }
+        
+        /* --- 5. CSS: Victoire --- */
+        #win-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #win-overlay.visible { display: flex; }
+        #win-overlay h2 { color: #4cd137; font-size: 3rem; margin-bottom: 20px; }
+        #win-overlay button { max-width: 250px; background: #4cd137; }
+
+        /* --- 6. CSS: Records --- */
+        .records-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            margin-top: 10px;
+        }
+        .records-table th, .records-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .records-table th { color: var(--accent-color); }
+        .records-table tr:last-child td { border-bottom: none; }
+        .theme-light .records-table th, .theme-light .records-table td { border-bottom: 1px solid rgba(0,0,0,0.1); }
+        
+        .records-table .time-value { font-family: monospace; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div id="main-app">
+        <h1>SLIDE MASTER</h1>
+
+        <div id="menu-screen" class="screen active">
+            <h2>MENU PRINCIPAL</h2>
+            <button onclick="game.showScreen('game-options-screen')">▶️ JOUER</button>
+            <button onclick="game.showScreen('records-screen')">🏆 RECORDS</button>
+            <button onclick="game.showScreen('settings-screen')">⚙️ PARAMÈTRES</button>
+            <button onclick="alert('Le bouton LEAVE vous ramène au menu principal sur le web.'); game.showScreen('menu-screen')">🚪 QUITTER / MENU</button>
+        </div>
+
+        <div id="game-options-screen" class="screen">
+            <h2>CHOIX DU JEU</h2>
+            <div class="settings-control">
+                <label for="size-select">Taille de la Grille :</label>
+                <select id="size-select">
+                    <option value="3">3 x 3 (Facile)</option>
+                    <option value="4" selected>4 x 4 (Classique)</option>
+                    <option value="5">5 x 5 (Intermédiaire)</option>
+                    <option value="6">6 x 6 (Difficile)</option>
+                    <option value="7">7 x 7 (Expert)</option>
+                </select>
+            </div>
+            <button onclick="game.startGameSetup()">COMMENCER LA PARTIE</button>
+            <button onclick="game.showScreen('menu-screen')">← RETOUR</button>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="scoreboard">
+                <div class="score-box">
+                    <span class="score-label">Actuel</span>
+                    <span id="timer" class="score-value">00:00.0</span>
+                </div>
+                <div class="score-box">
+                    <span class="score-label">Dernier</span>
+                    <span id="last-time" class="score-value">--:--</span>
+                </div>
+                <div class="score-box">
+                    <span class="score-label">Record (Perso)</span>
+                    <span id="best-time" class="score-value">--:--</span>
+                </div>
+            </div>
+
+            <div id="game-container">
+                </div>
+            
+            <div class="game-controls">
+                <button onclick="game.initGame(game.gridSize)">🔄 RESTART</button>
+                <button onclick="game.leaveGame()">🏠 Menu </button>
+            </div>
+        </div>
+        
+        <div id="records-screen" class="screen">
+            <h2>TABLEAU DES RECORDS</h2>
+            <p>Meilleurs temps enregistrés pour chaque taille de grille.</p>
+            <table class="records-table" id="records-table">
+                <thead>
+                    <tr>
+                        <th>Taille</th>
+                        <th>Meilleur Temps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <button onclick="game.showScreen('menu-screen')">← RETOUR</button>
+        </div>
+
+        <div id="settings-screen" class="screen">
+            <h2>PARAMÈTRES</h2>
+
+            <div class="settings-control">
+                <label for="tile-size-select">Taille Visuelle du Jeu :</label>
+                <select id="tile-size-select" onchange="game.updateTileSize(this.value)">
+                    <option value="70">Petit (70px)</option>
+                    <option value="80" selected>Moyen (80px)</option>
+                    <option value="90">Grand (90px)</option>
+                    <option value="100">Très Grand (100px)</option>
+                </select>
+            </div>
+            
+            <div class="settings-control">
+                <label for="theme-select">Thème du Jeu :</label>
+                <select id="theme-select" onchange="game.changeTheme(this.value)">
+                    <option value="dark">Sombre (Actuel)</option>
+                    <option value="light">Clair</option>
+                </select>
+            </div>
+            
+            <button onclick="game.showScreen('menu-screen')">← RETOUR</button>
+        </div>
+    </div>
+
+    <div id="win-overlay">
+        <h2>🎉 VICTOIRE !</h2>
+        <p>Temps final : <span id="final-time"></span></p>
+        <button onclick="game.closeOverlay()">CONTINUER</button>
+    </div>
+
+    <script>
+        /* --- Javascript : Logique du jeu --- */
+
+        class SlidePuzzle {
+            constructor() {
+                this.container = document.getElementById('game-container');
+                this.sizeSelect = document.getElementById('size-select');
+                this.timerDisplay = document.getElementById('timer');
+                this.lastTimeDisplay = document.getElementById('last-time');
+                this.bestTimeDisplay = document.getElementById('best-time');
+                this.winOverlay = document.getElementById('win-overlay');
+                this.finalTimeDisplay = document.getElementById('final-time');
+                this.recordsTableBody = document.querySelector('#records-table tbody');
+                this.tileSizeSelect = document.getElementById('tile-size-select');
+                this.themeSelect = document.getElementById('theme-select');
+
+                this.gridSize = 4; // Taille logique actuelle
+                this.tileSize = 80; // Taille physique (pixel)
+                this.gap = 5; 
+                this.tiles = [];
+                this.emptyPos = { r: 0, c: 0 };
+                this.isPlaying = false;
+                
+                this.startTime = 0;
+                this.timerInterval = null;
+                this.currentTimeStr = "00:00.0";
+
+                this.loadSettings();
+                this.showScreen('menu-screen');
+            }
+
+            // --- Gestion de l'affichage (Menu, Jeu, etc.) ---
+            showScreen(screenId) {
+                document.querySelectorAll('.screen').forEach(screen => {
+                    screen.classList.remove('active');
+                });
+                document.getElementById(screenId).classList.add('active');
+                
+                // Actions spécifiques à l'écran
+                if (screenId === 'records-screen') {
+                    this.renderRecords();
+                }
+                if (screenId === 'game-screen') {
+                     // Assure que le chrono est à jour si la partie n'est pas finie
+                     if (this.isPlaying) this.startTimer();
+                }
+                if (screenId === 'menu-screen') {
+                    this.stopTimer(); // Arrête le chrono quand on quitte le jeu
+                }
+            }
+            
+            leaveGame() {
+                this.stopTimer();
+                this.isPlaying = false;
+                this.timerDisplay.innerText = "00:00.0";
+                this.lastTimeDisplay.innerText = "--:--";
+                this.showScreen('menu-screen');
+            }
+
+            startGameSetup() {
+                this.gridSize = parseInt(this.sizeSelect.value);
+                this.updateScoreDisplay(); // Charge les records pour cette taille
+                this.initGame();
+                this.showScreen('game-screen');
+            }
+
+            // --- PARAMÈTRES ---
+            loadSettings() {
+                const savedSize = localStorage.getItem('puzzle_tile_size') || '80';
+                this.tileSize = parseInt(savedSize);
+                this.tileSizeSelect.value = savedSize;
+
+                const savedTheme = localStorage.getItem('puzzle_theme') || 'dark';
+                this.changeTheme(savedTheme, false); // Charge sans resauver
+                this.themeSelect.value = savedTheme;
+            }
+
+            updateTileSize(newSize) {
+                this.tileSize = parseInt(newSize);
+                localStorage.setItem('puzzle_tile_size', newSize);
+                
+                // Si on est en jeu, il faut redessiner le conteneur
+                if (document.getElementById('game-screen').classList.contains('active')) {
+                    this.container.style.width = `${this.containerSize}px`;
+                    this.container.style.height = `${this.containerSize}px`;
+                    this.tiles.forEach(t => {
+                        t.element.style.width = `${this.tileSize}px`;
+                        t.element.style.height = `${this.tileSize}px`;
+                        this.updateTilePosition(t.element, t.r, t.c);
+                    });
+                }
+            }
+
+            changeTheme(theme, save = true) {
+                document.body.classList.remove('theme-light');
+                if (theme === 'light') {
+                    document.body.classList.add('theme-light');
+                }
+                if (save) localStorage.setItem('puzzle_theme', theme);
+            }
+
+            // --- LOGIQUE DU JEU ---
+            get containerSize() {
+                return (this.tileSize * this.gridSize) + (this.gap * (this.gridSize + 1));
+            }
+
+            initGame() {
+                this.stopTimer();
+                this.isPlaying = false;
+                this.timerDisplay.innerText = "00:00.0";
+                this.container.innerHTML = '';
+                this.tiles = [];
+                
+                this.container.style.width = `${this.containerSize}px`;
+                this.container.style.height = `${this.containerSize}px`;
+
+                let count = 1;
+                for (let r = 0; r < this.gridSize; r++) {
+                    for (let c = 0; c < this.gridSize; c++) {
+                        if (r === this.gridSize - 1 && c === this.gridSize - 1) {
+                            this.emptyPos = { r, c };
+                            break;
+                        }
+                        this.createTile(count, r, c);
+                        count++;
+                    }
+                }
+
+                this.shuffleBoard();
+            }
+
+            createTile(val, r, c) {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.innerText = val;
+                
+                tile.style.width = `${this.tileSize}px`;
+                tile.style.height = `${this.tileSize}px`;
+                
+                this.updateTilePosition(tile, r, c);
+
+                const tileObj = { element: tile, val: val, r: r, c: c };
+                
+                // Utilise 'click' pour la compatibilité mobile/itch.io (le "hover" n'est pas fiable)
+                tile.addEventListener('click', () => {
+                    if (this.isPlaying) {
+                        this.tryMove(tileObj);
+                    }
+                });
+                // Sur ordinateur, on peut simuler le "hover" avec mouseenter pour l'effet ultra-rapide
+                tile.addEventListener('mouseenter', () => {
+                    if (this.isPlaying && window.matchMedia("(pointer: fine)").matches) {
+                         this.tryMove(tileObj);
+                    }
+                });
+
+                this.tiles.push(tileObj);
+                this.container.appendChild(tile);
+            }
+
+            updateTilePosition(tileEl, r, c) {
+                const x = this.gap + c * (this.tileSize + this.gap);
+                const y = this.gap + r * (this.tileSize + this.gap);
+                tileEl.style.transform = `translate(${x}px, ${y}px)`;
+            }
+            
+            // ... (shuffleBoard, getNeighbors, tryMove, swap, checkCorrectPositions, checkWin restent identiques) ...
+            shuffleBoard() {
+                let moves = this.gridSize * 30;
+                let lastMove = -1;
+
+                const interval = setInterval(() => {
+                    const neighbors = this.getNeighbors(this.emptyPos.r, this.emptyPos.c);
+                    const validNeighbors = neighbors.filter(n => n.val !== lastMove);
+                    
+                    const randomNeighbor = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+                    
+                    if (randomNeighbor) {
+                        this.swap(randomNeighbor);
+                        lastMove = randomNeighbor.val;
+                    }
+
+                    moves--;
+                    if (moves <= 0) {
+                        clearInterval(interval);
+                        this.startGame();
+                    }
+                }, 5);
+            }
+
+            getNeighbors(emptyR, emptyC) {
+                return this.tiles.filter(t => {
+                    const dr = Math.abs(t.r - emptyR);
+                    const dc = Math.abs(t.c - emptyC);
+                    return (dr === 1 && dc === 0) || (dr === 0 && dc === 1);
+                });
+            }
+
+            startGame() {
+                this.isPlaying = true;
+                this.startTimer();
+                this.checkCorrectPositions();
+            }
+
+            tryMove(tileObj) {
+                const dr = Math.abs(tileObj.r - this.emptyPos.r);
+                const dc = Math.abs(tileObj.c - this.emptyPos.c);
+
+                if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+                    this.swap(tileObj);
+                    this.checkCorrectPositions();
+                    
+                    if (this.checkWin()) {
+                        this.endGame();
+                    }
+                }
+            }
+
+            swap(tileObj) {
+                const tempR = tileObj.r;
+                const tempC = tileObj.c;
+
+                tileObj.r = this.emptyPos.r;
+                tileObj.c = this.emptyPos.c;
+
+                this.emptyPos.r = tempR;
+                this.emptyPos.c = tempC;
+
+                this.updateTilePosition(tileObj.element, tileObj.r, tileObj.c);
+            }
+
+            checkCorrectPositions() {
+                this.tiles.forEach(t => {
+                    const correctVal = (t.r * this.gridSize) + t.c + 1;
+                    if (t.val === correctVal) {
+                        t.element.classList.add('correct');
+                    } else {
+                        t.element.classList.remove('correct');
+                    }
+                });
+            }
+
+            checkWin() {
+                for (let t of this.tiles) {
+                    const correctVal = (t.r * this.gridSize) + t.c + 1;
+                    if (t.val !== correctVal) return false;
+                }
+                return true;
+            }
+
+            // --- CHRONOMÈTRE & RECORDS ---
+            startTimer() {
+                if (this.timerInterval) return; // Empêche de lancer deux fois
+                this.startTime = Date.now();
+                this.timerInterval = setInterval(() => {
+                    const delta = Date.now() - this.startTime;
+                    this.currentTimeStr = this.formatTime(delta);
+                    this.timerDisplay.innerText = this.currentTimeStr;
+                }, 70);
+            }
+
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+
+            formatTime(ms) {
+                const minutes = Math.floor(ms / 60000);
+                const seconds = Math.floor((ms % 60000) / 1000);
+                const deciseconds = Math.floor((ms % 1000) / 100);
+                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${deciseconds}`;
+            }
+
+            endGame() {
+                this.isPlaying = false;
+                this.stopTimer();
+                
+                this.lastTimeDisplay.innerText = this.currentTimeStr;
+                
+                const storageKey = `slidePuzzle_best_${this.gridSize}`;
+                const currentMs = Date.now() - this.startTime;
+                const savedBest = localStorage.getItem(storageKey);
+                
+                let isNewRecord = false;
+
+                if (!savedBest || currentMs < parseInt(savedBest)) {
+                    localStorage.setItem(storageKey, currentMs);
+                    this.bestTimeDisplay.innerText = this.currentTimeStr;
+                    isNewRecord = true;
+                }
+
+                this.finalTimeDisplay.innerText = this.currentTimeStr + (isNewRecord ? " (Nouveau Record !)" : "");
+                this.winOverlay.classList.add('visible');
+            }
+
+            updateScoreDisplay() {
+                // Met à jour le meilleur temps affiché pour la grille sélectionnée
+                const storageKey = `slidePuzzle_best_${this.gridSize}`;
+                const savedBest = localStorage.getItem(storageKey);
+                this.bestTimeDisplay.innerText = savedBest ? this.formatTime(savedBest) : "--:--";
+                this.lastTimeDisplay.innerText = "--:--"; // Reset le dernier temps quand on charge un nouveau niveau
+            }
+
+            renderRecords() {
+                this.recordsTableBody.innerHTML = '';
+                
+                const sizes = [3, 4, 5, 6, 7];
+                sizes.forEach(size => {
+                    const storageKey = `slidePuzzle_best_${size}`;
+                    const bestMs = localStorage.getItem(storageKey);
+                    
+                    const tr = document.createElement('tr');
+                    
+                    const tdSize = document.createElement('td');
+                    tdSize.innerText = `${size} x ${size}`;
+                    
+                    const tdTime = document.createElement('td');
+                    tdTime.className = 'time-value';
+                    tdTime.innerText = bestMs ? this.formatTime(bestMs) : 'Pas encore de record';
+                    
+                    tr.appendChild(tdSize);
+                    tr.appendChild(tdTime);
+                    this.recordsTableBody.appendChild(tr);
+                });
+            }
+
+            closeOverlay() {
+                this.winOverlay.classList.remove('visible');
+                // Laisse l'utilisateur rejouer immédiatement ou revenir au menu
+                this.initGame(); 
+            }
+        }
+
+        // Lancement du jeu
+        window.game = new SlidePuzzle();
+
+    </script>
+</body>
+</html>
