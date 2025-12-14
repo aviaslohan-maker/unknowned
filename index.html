@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slide Puzzle - PWA Offline</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Slide Puzzle">
+
+    <style>
+        /* [ ... TOUT LE CODE CSS DE LA RÉPONSE PRÉCÉDENTE ICI ... ] */
+        /* Assurez-vous d'avoir toutes les balises de style */
+
+        /* --- 1. CSS: Variables & Thèmes --- */
+        :root {
+            /* Couleurs SOMBRE (Par défaut) */
+            --bg-color: #1a1a2e;
+            --panel-color: #16213e;
+            --accent-color: #e94560;
+            --text-color: #ffffff;
+            --tile-color: #0f3460;
+            --tile-text: #fff;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        /* [ ... Reste du CSS jusqu'à .records-table .time-value ... ] */
+        
+        .theme-light {
+             /* ... (Couleurs Claires) ... */
+             --bg-color: #f0f0f5;
+            --panel-color: #ffffff;
+            --accent-color: #3385ff;
+            --text-color: #333333;
+            --tile-color: #e0f2ff;
+            --tile-text: #333333;
+            --shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+        }
+        /* ... (Fin du CSS) ... */
+
+    </style>
+</head>
+<body>
+
+    <div id="main-app">
+        <h1>SLIDE MASTER</h1>
+
+        <div id="menu-screen" class="screen active">
+            <h2>MENU PRINCIPAL</h2>
+            <button onclick="game.showScreen('game-options-screen')">▶️ JOUER</button>
+            <button onclick="game.showScreen('records-screen')">🏆 RECORDS</button>
+            <button onclick="game.showScreen('settings-screen')">⚙️ PARAMÈTRES</button>
+            <button onclick="alert('Le bouton LEAVE vous ramène au menu principal sur le web.'); game.showScreen('menu-screen')">🚪 QUITTER / MENU</button>
+        </div>
+
+        <div id="game-options-screen" class="screen">
+            <h2>CHOIX DU JEU</h2>
+            <div class="settings-control">
+                <label for="size-select">Taille de la Grille :</label>
+                <select id="size-select">
+                    <option value="3">3 x 3 (Facile)</option>
+                    <option value="4" selected>4 x 4 (Classique)</option>
+                    <option value="5">5 x 5 (Intermédiaire)</option>
+                    <option value="6">6 x 6 (Difficile)</option>
+                    <option value="7">7 x 7 (Expert)</option>
+                </select>
+            </div>
+            <button onclick="game.startGameSetup()">COMMENCER LA PARTIE</button>
+            <button onclick="game.showScreen('menu-screen')">← RETOUR</button>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="scoreboard">
+                <div class="score-box">
+                    <span class="score-label">Actuel</span>
+                    <span id="timer" class="score-value">00:00.0</span>
+                </div>
+                <div class="score-box">
+                    <span class="score-label">Dernier</span>
+                    <span id="last-time" class="score-value">--:--</span>
+                </div>
+                <div class="score-box">
+                    <span class="score-label">Record (Perso)</span>
+                    <span id="best-time" class="score-value">--:--</span>
+                </div>
+            </div>
+
+            <div id="game-container">
+                </div>
+            
+            <div class="game-controls">
+                <button onclick="game.initGame(game.gridSize)">🔄 RECOMMENCER</button>
+                <button onclick="game.leaveGame()">🏠 LEAVE (Menu)</button>
+            </div>
+        </div>
+        
+        <div id="records-screen" class="screen">
+            <h2>TABLEAU DES RECORDS</h2>
+            <p>Meilleurs temps enregistrés pour chaque taille de grille.</p>
+            <table class="records-table" id="records-table">
+                <thead>
+                    <tr>
+                        <th>Taille</th>
+                        <th>Meilleur Temps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <button onclick="game.showScreen('menu-screen')">← RETOUR</button>
+        </div>
+
+        <div id="settings-screen" class="screen">
+            <h2>PARAMÈTRES</h2>
+            <div class="settings-control">
+                <label for="tile-size-select">Taille Visuelle du Jeu :</label>
+                <select id="tile-size-select" onchange="game.updateTileSize(this.value)">
+                    <option value="70">Petit (70px)</option>
+                    <option value="80" selected>Moyen (80px)</option>
+                    <option value="90">Grand (90px)</option>
+                    <option value="100">Très Grand (100px)</option>
+                </select>
+            </div>
+            
+            <div class="settings-control">
+                <label for="theme-select">Thème du Jeu :</label>
+                <select id="theme-select" onchange="game.changeTheme(this.value)">
+                    <option value="dark">Sombre (Actuel)</option>
+                    <option value="light">Clair</option>
+                </select>
+            </div>
+            
+            <button onclick="game.showScreen('menu-screen')">← RETOUR</button>
+        </div>
+    </div>
+
+    <div id="win-overlay">
+        <h2>🎉 VICTOIRE !</h2>
+        <p>Temps final : <span id="final-time"></span></p>
+        <button onclick="game.closeOverlay()">CONTINUER</button>
+    </div>
+
+    <script>
+        /* [ ... TOUT LE CODE JAVASCRIPT DE LA RÉPONSE PRÉCÉDENTE ICI ... ] */
+        
+        // Collez le code JS de la classe SlidePuzzle ici
+        class SlidePuzzle {
+            // ... (toutes les méthodes de la classe, y compris constructor, initGame, etc.)
+            constructor() {
+                // ... (initialisation)
+                this.container = document.getElementById('game-container');
+                // ...
+                this.loadSettings();
+                this.showScreen('menu-screen');
+            }
+            // ...
+            // (Collez le reste du JS ici)
+            // ...
+            
+            // Lancement du jeu
+            // window.game = new SlidePuzzle(); est à la fin du script.
+        }
+        
+        window.game = new SlidePuzzle();
+        
+    </script>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+                    .then(registration => {
+                        console.log('ServiceWorker enregistré avec succès:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Échec de l\'enregistrement du ServiceWorker:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
